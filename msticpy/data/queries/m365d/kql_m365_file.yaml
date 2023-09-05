@@ -1,17 +1,17 @@
 metadata:
   version: 1
-  description: MDE Queries
+  description: M365D Queries
   data_environments: [MDATP, MDE, M365D, LogAnalytics]
-  data_families: [MDATP, MDE]
-  tags: ["network"]
+  data_families: [M365D]
+  tags: ["file", "process"]
 defaults:
   metadata:
-    data_source: "network_events"
+    data_source: "file_events"
   parameters:
     table:
       description: Table name
       type: str
-      default: "DeviceNetworkEvents"
+      default: "DeviceFileEvents"
     start:
       description: Query start time
       type: datetime
@@ -27,72 +27,69 @@ defaults:
       type: str
       default: "Timestamp"
 sources:
-  list_connections:
-    description: Retrieves list of all network connections
+  list_file_events_for_filename:
+    description: Lists all file events by filename
     metadata:
     args:
-      query: "
+      query: '
         {table}
         | where {time_column} >= datetime({start})
         | where {time_column} <= datetime({end})
-        {add_query_items}"
+        | where FileName has "{file_name}"
+        {add_query_items}'
       uri: None
     parameters:
-  host_connections:
-    description: Lists connections by for a specified hostname
+      file_name:
+        description: Name of file
+        type: str
+  list_file_events_for_path:
+    description: Lists all file events from files in a certain path
     metadata:
     args:
       query: '
         {table}
         | where {time_column} >= datetime({start})
         | where {time_column} <= datetime({end})
-        | where DeviceName has "{host_name}"
+        | where FolderPath contains "{path}"
         {add_query_items}'
     parameters:
-      host_name:
-        description: Name of host
+      path:
+        description: Full or partial path to search in
+        type: str
+  list_file_events_for_hash:
+    description: Lists all file events by hash
+    metadata:
+    args:
+      query: '
+        {table}
+        | where {time_column} >= datetime({start})
+        | where {time_column} <= datetime({end})
+        | where SHA1 == "{file_hash}" or SHA256 == "{file_hash}" or MD5 == "{file_hash}"
+        {add_query_items}'
+      uri: None
+    parameters:
+      file_hash:
+        description: Hash of file
         type: str
         aliases:
-          - hostname
-  ip_connections:
-    description: Lists network connections associated with a specified remote IP
+          - hash
+  list_file_events_for_host:
+    description: Lists all file events for a host/device
     metadata:
     args:
       query: '
         {table}
         | where {time_column} >= datetime({start})
         | where {time_column} <= datetime({end})
-        | where RemoteIP has "{ip_address}" or LocalIP has "{ip_address}"
+        | where DeviceName == "{host_name}" or DeviceID == "{device_id}"
         {add_query_items}'
+      uri: None
     parameters:
-      ip_address:
-        description: Remote IP Address
+      host_name:
+        description: The name of the host/device
         type: str
-  url_connections:
-    description: Lists connections associated with a specified URL
-    metadata:
-    args:
-      query: '
-        {table}
-        | where {time_column} >= datetime({start})
-        | where {time_column} <= datetime({end})
-        | where RemoteUrl has "{url}"
-        {add_query_items}'
-    parameters:
-      url:
-        description: Remote URL
+        default: ""
+      device_id:
+        description: The device ID of the host/device
         type: str
-  protocol_connections:
-    description: Lists connections associated with a specified protocol
-    metadata:
-    args:
-      query: "
-        {table}
-        | where {time_column} >= datetime({start})
-        | where {time_column} <= datetime({end})
-        | where RemotePort == {protocol}
-        {add_query_items}"
-    parameters:
-      protocol:
-        description: Port to query for
-        type: str
+        default: ""

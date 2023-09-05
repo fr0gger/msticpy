@@ -42,8 +42,8 @@ To implement a data provider you need to do the following:
 1. Write the driver class
 -------------------------
 
-This must be derived from :py:class:`DriverBase<msticpy.data.drivers.driver_base.DriverBase>`
-(`DriverBase source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/driver_base.py>`_).
+This must be derived from :py:class:`DriverBase <msticpy.data.drivers.driver_base.DriverBase>`
+(`DriverBase source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/driver_base.py>`__).
 You should implement the following methods:
 
 - ``__init__``
@@ -86,7 +86,7 @@ section of your configuration settings from ``msticpyconfig.yaml``.
 
 Some existing drivers use an API key to authenticate, some use name/password and others
 use Azure Active Directory (AAD). See :py:class:`KqlDriver <msticpy.data.drivers.kql_driver.KqlDriver>`
-(`KqlDriver source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/kql_driver.py>`_)
+(`KqlDriver source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/kql_driver.py>`__)
 for an example
 of the latter.)
 
@@ -105,7 +105,7 @@ This takes the following parameters:
 - ``query`` - string of query text
 - ``query_source`` - this is populated if the query is a MSTICPy template query
   read from a query yaml file (see
-  :ref:`Creating new queries <data_acquisition/dataproviders:Creating new queries>`)
+  :doc:`Creating new queries <../extending/Queries>`)
   and is an instance of
   :py:class:`QuerySource <msticpy.data.query_source.QuerySource>`. This is a representation
   of the yaml query with extracted parameters and metadata available as explicit
@@ -206,7 +206,7 @@ follows:
         }
 
 See :py:class:`SplunkDriver <msticpy.data.drivers.splunk_driver.SplunkDriver>`
-(`SplunkDriver source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/splunk_driver.py>`_)
+(`SplunkDriver source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/splunk_driver.py>`__)
 for an example.
 
 Code:
@@ -272,7 +272,7 @@ Add the provider as a DataEnvironment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the enum :py:class:`DataEnvironment <msticpy.data.query_defns.DataEnvironment>`
-(`DataEnvironments source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/query_defns.py>`_)
+(`DataEnvironments source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/query_defns.py>`__)
 add an entry for your provider using the next available enum value.
 
 .. code-block:: Python3
@@ -307,7 +307,7 @@ Add an entry to the driver dynamic load table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the ``__init__.py`` module of data drivers
-(`drivers sub-package __init__ source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/__init__.py>`_)
+(`drivers sub-package __init__ source <https://github.com/microsoft/msticpy/tree/main/msticpy/data/drivers/__init__.py>`__)
 
 .. code-block: Python3
   :emphasize-lines: 10
@@ -331,7 +331,7 @@ In the ``__init__.py`` module of data drivers
 Create a folder in msticpy/data/queries with the name of your *DataEnvironment* and
 add queries. The folder name must match the item that you added to the DataEnvironment
 Enum class in step 3 above. The For more details on creating queries, see
-:ref:`Creating new queries <data_acquisition/dataproviders:Creating new queries>`.
+:doc:`Creating new queries <../extending/Queries>`.
 
 Query parameter names
 ~~~~~~~~~~~~~~~~~~~~~

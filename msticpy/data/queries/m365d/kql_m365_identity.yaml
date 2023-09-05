@@ -1,17 +1,13 @@
 metadata:
   version: 1
-  description: MDATP Queries
+  description: M365D User Queries
   data_environments: [MDATP, MDE, M365D, LogAnalytics]
-  data_families: [MDATP, MDE]
-  tags: ["file"]
+  data_families: [IdentityOnPrem]
+  tags: ["user", "account"]
 defaults:
   metadata:
-    data_source: "file_events"
+    data_source: "user_events"
   parameters:
-    table:
-      description: Table name
-      type: str
-      default: "DeviceProcessEvents"
     start:
       description: Query start time
       type: datetime
@@ -26,49 +22,53 @@ defaults:
       description: The name of the column detailing the time the event was generated.
       type: str
       default: "Timestamp"
+    table:
+      description: Table name
+      type: str
+      default: IdentityLogonEvents
 sources:
-  list_files:
-    description: Lists all file events by filename
+  logons_for_account:
+    description: Return all Active Directory on-premises user logons for user name
     metadata:
     args:
       query: '
         {table}
         | where {time_column} >= datetime({start})
         | where {time_column} <= datetime({end})
-        | where FileName has "{file_name}"
+        | where AccountUpn has "{account_name}"
         {add_query_items}'
       uri: None
     parameters:
-      file_name:
-        description: Name of file
+      account_name:
+        description: Name or part name of user/UPN
         type: str
-  file_path:
-    description: Lists all file events from files in a certain path
+  logons_for_ip:
+    description: Return all Active Directory on-premises user logons for ip address
     metadata:
     args:
       query: '
         {table}
         | where {time_column} >= datetime({start})
         | where {time_column} <= datetime({end})
-        | where FolderPath contains "{path}"
-        {add_query_items}'
-    parameters:
-      path:
-        description: Full or partial path to search in
-        type: str
-  list_filehash:
-    description: Lists all file events by hash
-    metadata:
-    args:
-      query: '
-        {table}
-        | where {time_column} >= datetime({start})
-        | where {time_column} <= datetime({end})
-        | where SHA1 == "{file_hash}" or SHA256 == "{file_hash}" or MD5 == "{file_hash}"
+        | where IPAddress == "{ip_address}"
         {add_query_items}'
       uri: None
     parameters:
-      file_hash:
-        description: Hash of file
+      ip_address:
+        description: Source IP address of logons
         type: str
-        aliases: hash
+  logons_for_host:
+    description: Return all Active Directory on-premises user logons for host/device name
+    metadata:
+    args:
+      query: '
+        {table}
+        | where {time_column} >= datetime({start})
+        | where {time_column} <= datetime({end})
+        | where DeviceName has "{host_name}"
+        {add_query_items}'
+      uri: None
+    parameters:
+      host_name:
+        description: The host/device source name for logons
+        type: str
