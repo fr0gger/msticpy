@@ -1,0 +1,8 @@
+streamlit
+openai
+langchain
+msticpy
+vt-py
+vt-graph-api
+passivetotal
+pandas
