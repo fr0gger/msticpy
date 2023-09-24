@@ -17,6 +17,9 @@ from langchain.agents import Tool, initialize_agent, AgentType, AgentExecutor
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import MessagesPlaceholder
 
+from langchain.chains import LLMChain
+from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
+
 from msticpy.sectools.tilookup import TILookup
 from msticpy.sectools.vtlookupv3 import VTLookupV3
 from msticpy.context.tiproviders.riskiq import RiskIQ
@@ -24,8 +27,11 @@ from msticpy.context.tiproviders.riskiq import RiskIQ
 
 # Important import to avoid the dataframe to be truncated and avoid the LLM to retrieve the content
 import pandas as pd
-
-pd.set_option("display.max_colwidth", None)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+pd.set_option('display.max_colwidth', None)
+pd.set_option('expand_frame_repr', False)
 
 
 __version__ = VERSION
@@ -65,7 +71,8 @@ class VTAgent:
     def samples_info(self, hash: str) -> str:
         """Get information about a given sample based on its hash."""
         result = self.vt_lookup.get_object(hash, "file")
-        return str(result)[:3500]
+        #return str(result)[:9000]
+        return(result.iloc[:, :40])
     
     def parsing_parameter(self, string):
         """Parse the action_input from the LLM to retrieve the observable, observable_type and relationship."""
@@ -93,7 +100,7 @@ class VTAgent:
             Tool(
                 name="Retrieve_Sample_Relationships",
                 func=self.parsing_parameter,
-                description="Useful when you need to get communicating_samples or donwloaded_samples from an IP, an url or a domain. The input to this tool should be a comma separated list that contains an observable (IP or domain, or url) and observable_type that can be 'ip_address', 'domain' or 'url' and the relationship that can be 'communicating_files' or 'downloaded_files'. For example, 8.8.8.8,ip_address,communicating_files would be the input to retrieve the communicating files from 8.8.8.8",
+                description="Useful when you need to get communicating_samples or downloaded_samples from an IP, an url or a domain. The input to this tool should be a comma separated list that contains an observable (IP or domain, or url) and observable_type that can be 'ip_address', 'domain' or 'url' and the relationship that can be 'communicating_files' or 'downloaded_files'. For example, 8.8.8.8,ip_address,communicating_files would be the input to retrieve the communicating files from 8.8.8.8",
             ),
         ]
 
@@ -196,9 +203,10 @@ class OTXAgent:
 
     def samples_info(self, hash: str) -> str:
         """Get information about a given sample based on its hash."""
-        return self.ti_lookup.lookup_ioc(
+        result = self.ti_lookup.lookup_ioc(
             observable=hash, ioc_type="file_hash", providers=["OTX"]
-        )[:3500]
+        )
+        return(result.iloc[:, :10])
 
     def get_tools(self):
         return [
@@ -275,6 +283,7 @@ class AgentRunner:  # Replace with your actual class name
 
     @classmethod
     def initialize_agent(cls, agent_name: str, debug=True):
+
         if agent_name not in cls.AGENTS:
             raise ValueError(f"Agent '{agent_name}' not found. Available agents are: {', '.join(cls.AGENTS.keys())}")
 
@@ -289,10 +298,15 @@ class AgentRunner:  # Replace with your actual class name
             cls._agent_initialized = True
 
     @classmethod
-    def run_agent(cls, agent_name: str, prompt: str, debug=False):
+    def run_agent(cls, agent_name: str, prompt: str, debug=False, openai_api_key=None, model_name="gpt-4"):
+
+        # llm = OpenAI(openai_api_key="...")
+        llm = ChatOpenAI(model_name=model_name, temperature=0.3, openai_api_key=openai_api_key)
+
         if not cls._agent_initialized:
             cls.initialize_agent(agent_name, debug=debug)
         
         if cls._agent:
-            cls._agent.run(input=prompt)
-            print(cls._agent.memory.buffer)
+            result = cls._agent.run(input=prompt)
+            #print(cls._agent.memory.buffer)
+            return(result)
