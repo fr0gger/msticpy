@@ -1,343 +1,176 @@
+# Importing the LLM features
+import msticpy
+from msticpy.context.contextproviders.llm import AgentRunner
+
 import streamlit as st
-# from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import Tool, initialize_agent, AgentType, AgentExecutor
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import MessagesPlaceholder
+import tempfile
+from HtmlTemplate import bot_template, user_template, css
 
-from msticpy.sectools.tilookup import TILookup
-from msticpy.sectools.vtlookupv3 import VTLookupV3
-from msticpy.context.tiproviders.riskiq import RiskIQ
+import nest_asyncio
+nest_asyncio.apply()
 
-import pandas as pd
+# Suppress FutureWarning messages
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-pd.set_option("display.max_colwidth", None)
+import pygame.mixer
 
-st.set_page_config(
-        page_title="MSTICPy AI Ally for Threat Intel",
-        page_icon="🕵🏽",
-        initial_sidebar_state="collapsed",
-        layout="wide",
-        )
 
-st.title("🤖 Welcome to MSTICPy AI Ally")
-st.subheader(" Powered by 🦜 LangChain + OpenAI + Streamlit")
-st.write("How can I assist you today?")
+def main():
+    """Main function of the App."""
+    # Set up the page
+    st.set_page_config(
+        page_title="MSTICPy AI Assistant",
+        page_icon="🤖",
+        initial_sidebar_state="expanded",
+        layout="centered"
+    )
 
-vt_key = "api_key"
-
-class VTAgent:
-    """VTAgent leverages the VirusTotal API to retrieve threat information."""
+    st.write(css, unsafe_allow_html=True)
     
-    def __init__(self):
-         """Initialize TILookup."""
-         self.vt_lookup = VTLookupV3(vt_key = vt_key)
-
-    def parsing_parameter1(self, string):
-        """Parse the action_input from the LLM to retrieve the observable, observable_type"""
-        observable, observable_type = string.split(",")
-        return self.url_ip_domain_info(observable, observable_type)
-
-    def url_ip_domain_info(self, observable: str, type) -> str:
-        """Get information about a given url."""
-        result = self.vt_lookup.lookup_ioc(observable=observable, vt_type=type)
-        return str(result)[:3500]
-
-    def samples_info(self, hash: str) -> str:
-        """Get information about a given sample based on its hash."""
-        result = self.vt_lookup.get_object(hash, "file")
-        return str(result)[:3500]
-    
-    def parsing_parameter(self, string):
-        """Parse the action_input from the LLM to retrieve the observable, observable_type and relationship."""
-        observable, observable_type, relationship = string.split(",")
-        return self.get_relationships(observable, observable_type, relationship)
-
-    def get_relationships(self, observable: str, observable_type: str, relationship: str) -> str:
-        """Retrieve relationship with a given observable."""
-        result = self.vt_lookup.lookup_ioc_relationships(observable=observable, vt_type=observable_type, relationship=relationship, limit="10")
-        return result
-
-    def get_tools(self):
-        """Return the list of tools available for this agent."""
-        return [
-            Tool(
-                name="Retrieve_url_ip_domain_Info",
-                func=self.parsing_parameter1,
-                description="Useful when you need to look up threat intelligence information for an url, ip or a domain. if it is an ip, the observable_type should be 'ip_address', if it is a domain, the observable_type should be 'domain' and if it is an url, the observable_type should be 'url'. The input to this tool should be a comma separated list that contains an observable (IP or domain, or url) and observable_type that can be 'ip_address', 'domain' or 'url'. For example, 8.8.8.8,ip_address would be the input to retrieve the info about the ip 8.8.8.8 ",
-            ),
-            Tool(
-                name="Retrieve_Sample_information",
-                func=self.samples_info,
-                description="Useful when you need to obtain more details about a sample. A sample must be specified by its hash.",
-            ),
-            Tool(
-                name="Retrieve_Sample_Relationships",
-                func=self.parsing_parameter,
-                description="Useful when you need to get communicating_samples or donwloaded_samples from an IP, an url or a domain. The input to this tool should be a comma separated list that contains an observable (IP or domain, or url) and observable_type that can be 'ip_address', 'domain' or 'url' and the relationship that can be 'communicating_files' or 'downloaded_files'. For example, 8.8.8.8,ip_address,communicating_files would be the input to retrieve the communicating files from 8.8.8.8",
-            ),
-        ]
-
-
-# class AbuseIPDBAgent:
-#     """
-#     AbuseIPDB agent mapping to AbuseIPDB TIProvider
-#     https://github.com/microsoft/msticpy/blob/main/msticpy/context/tiproviders/abuseipdb.py
-#     """
-
-#     def __init__(self):
-#         # Initialize your Agent from MSTICpy
-#         self.ti_lookup = TILookup()
-
-#     def ip_info(self, ip_address: str) -> str:
-#         """Get information about a given IP address."""
-#         result = self.ti_lookup.lookup_ioc(
-#             observable=ip_address,
-#             ioc_type="ipv4",
-#             ioc_query_type="full",
-#             providers=["AbuseIPDB"],
-#         )
-#         return str(result)[:3500]
-
-#     def get_tools(self):
-#         return [
-#             Tool(
-#                 name="Retrieve_IP_Info",
-#                 func=self.ip_info,
-#                 description="Useful when you need to look up threat intelligence information for an IP address.",
-#             )
-#         ]
-
-
-# class GreyNoiseAgent:
-#     """
-#     GreyNoise agent mapping to GreyNoise TIProvider
-#     https://github.com/microsoft/msticpy/blob/main/msticpy/context/tiproviders/greynoise.py
-#     """
-
-#     def __init__(self):
-#         # Initialize your Agent from MSTICpy
-#         self.ti_lookup = TILookup()
-
-#     def ip_info(self, ip_address: str) -> str:
-#         """Get information about a given IP address."""
-#         result = self.ti_lookup.lookup_ioc(
-#             observable=ip_address,
-#             ioc_type="ipv4",
-#             ioc_query_type="full",
-#             providers=["GreyNoise"],
-#         )
-#         return str(result)[:3500]
-
-#     def get_tools(self):
-#         return [
-#             Tool(
-#                 name="Retrieve_IP_greynoise_Info",
-#                 func=self.ip_info,
-#                 description="Useful when you need to look up threat intelligence information for an IP address.",
-#             )
-#         ]
-
-
-class OTXAgent:
-    """
-    OTX agent mapping to OTX TIProvider
-    https://github.com/microsoft/msticpy/blob/main/msticpy/context/tiproviders/alienvault_otx.py
-    """
-
-    def __init__(self):
-        # Initialize your Agent from MSTICpy
-        self.ti_lookup = TILookup(AuthKey=api_key)
-
-    def ip_info(self, ip_address: str) -> str:
-        """Get information about a given IP address.
-        FIXME! differentiate ioc_type ipv4, ipv6, -passivedns, -geo
+    st.markdown(
         """
-        result = self.ti_lookup.lookup_ioc(
-            observable=ip_address,
-            ioc_type="ipv4",
-            ioc_query_type="full",
-            providers=["OTX"],
+        <style>
+            .appview-container .main .block-container {{
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.image("msticpy2.png", use_column_width="auto")
+    st.subheader("🤖 How can I assist your threat investigation today?")
+
+    with st.sidebar:
+        st.markdown(
+            """
+            <style>
+                .css-1v7bkj4.ea3mdgi4 {
+                    margin-top: -75px;
+                }
+            </style>
+            """, 
+            unsafe_allow_html=True
         )
-        return str(result)[:3500]
 
-    def domain_info(self, domain: str) -> str:
-        """Get information about a given domain."""
-        result = self.ti_lookup.lookup_ioc(
-            observable=domain, ioc_type="dns", providers=["OTX"]
+        st.title("🤖 Welcome to MSTICPy AI")
+        st.write("""
+        Hello I'm the **MSTICpy AI-Powered Assistant**, crafted to navigate the world of threat intelligence with you. 
+                    
+        I am using LLMs coupled with MSTICpy to bolster your threat intelligence investigation.
+        """)
+
+        st.divider()
+        st.subheader("🔑 OpenAI Configuration")
+        st.write("First, configure your OpenAI API key and select the model you want to use. NB: if you are using a global variable for your API key you can skip this step.")
+        openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
+
+        if not openai_api_key:
+            st.info("Please add your OpenAI API key to continue.")
+
+        version = st.selectbox("Choose OpenAI Model version", ("3.5", "4.0"))
+        MODEL = "gpt-3.5-turbo-16k" if version == "3.5" else "gpt-4"
+
+        st.divider()
+        #st.write("You can select the debug mode to see the process of the LLMs:")
+        #debug_mode = st.sidebar.checkbox("Debug Mode")
+        #stream_mode = st.sidebar.checkbox("Streaming Mode")
+        st.subheader("⚙️ Select an Agent")
+        st.write("""I am also configured to use multiple agents. 
+                 Remember to configure the API keys for each agent you want to use in **msticpyconfig.yaml**.""")
+        #vt_key = st.text_input("VirusTotal API Key", key="ti_key", type="password")
+        selected_provider = st.radio(
+            "Select Threat Intel Provider", 
+            ["VirusTotal", "Alienvault OTX", "Risk IQ"], 
+            key="provider", 
+            horizontal=True
         )
-        return str(result)[:3500]
-
-    def url_info(self, url: str) -> str:
-        """Get information about a given url."""
-        result = self.ti_lookup.lookup_ioc(
-            observable=url, ioc_type="url", providers=["OTX"]
-        )
-        return str(result)[:3500]
-
-    def samples_info(self, hash: str) -> str:
-        """Get information about a given sample based on its hash."""
-        return self.ti_lookup.lookup_ioc(
-            observable=hash, ioc_type="file_hash", providers=["OTX"]
-        )[:3500]
-
-    def get_tools(self):
-        return [
-            Tool(
-                name="Retrieve_IP_OTX_Info",
-                func=self.ip_info,
-                description="Useful when you need to look up threat intelligence information for an IP address.",
-            ),
-            Tool(
-                name="Retrieve_Domain_OTX_Info",
-                func=self.domain_info,
-                description="Useful when you need to look up threat intelligence information for a domain.",
-            ),
-            Tool(
-                name="Retrieve_url_OTX_Info",
-                func=self.url_info,
-                description="Useful when you need to look up threat intelligence information for an url.",
-            ),
-            Tool(
-                name="Retrieve_Sample_OTX_information",
-                func=self.samples_info,
-                description="Useful when you need to obtain more details about a sample.",
-            ),
-        ]
-
-# Might make sense to combine all TI Lookup methods in one Agent with TILookup class
-
-class RiskIQAgent:
-    """RiskIQAgent leverages RiskIQ API to retrieve threat information"""
-
-    def __init__(self):
-        """Initialize RiskIQ class"""
-        self.risk_iq_lookup = RiskIQ(ApiId=api_key, ApiKey=api_secret)
-
-    def ip_info(self, ip_address: str) -> str:
-        """Get information about a given IP address."""
-        result = self.risk_iq_lookup.lookup_ioc(ioc=ip_address, ioc_type='ipv4')
-        return str(result)[:3500]
-
-    def domain_info(self, domain: str) -> str:
-        """Get information about a given domain."""
-        result = self.risk_iq_lookup.lookup_ioc(ioc=domain, ioc_type='dns')
-        return str(result)[:3500]
-
-    def get_tools(self):
-            """Return the list of tools available for this agent."""
-            return [
-
-                Tool(
-                    name='Retrieve_IP_Info',
-                    func=self.ip_info,
-                    description="Useful when you need to look up threat intelligence information for an IP address."
-                ),
-                Tool(
-                    name='Retrieve_Domain_Info',
-                    func=self.domain_info,
-                    description="Useful when you need to look up threat intelligence information for a domain or a hostname."
-                )
-            ]
-
-class AgentRunner:  # Replace with your actual class name
-    _agent_initialized = False
-    _agent = None  # To store the initialized agent instance
-
-    AGENTS = {
-        "VTAgent": VTAgent(),
-        # "AbuseIPDBAgent": AbuseIPDBAgent(),
-        # "GreyNoiseAgent": GreyNoiseAgent(),
-        # "OTXAgent": OTXAgent(),
-        # "RiskIQAgent": RiskIQAgent(),
-        # "SkeletonAgent": SkeletonAgent()
-        # Add other agents here like: "OtherAgent": OtherAgent()
-    }
-
-    @classmethod
-    def initialize_agent(cls, agent_name: str, debug=True):
-        if agent_name not in cls.AGENTS:
-            raise ValueError(f"Agent '{agent_name}' not found. Available agents are: {', '.join(cls.AGENTS.keys())}")
-
-        selected_agent = cls.AGENTS[agent_name]
-        tools = selected_agent.get_tools()
         
-        if not cls._agent_initialized:
-
-            memory = ConversationBufferMemory(memory_key="chat_history")
-
-            cls._agent = initialize_agent(tools, llm=llm, memory=memory, agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION, verbose=debug)
-            cls._agent_initialized = True
-
-    @classmethod
-    def run_agent(cls, agent_name: str, prompt: str, debug=False):
-        if not cls._agent_initialized:
-            cls.initialize_agent(agent_name, debug=debug)
-        
-        if cls._agent:
-            cls._agent.run(input=prompt)
-            print(cls._agent.memory.buffer)
-
-
-with st.sidebar:
-    openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
-    "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
-    "[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/fr0gger/msticpy)"
-    # Let user select OpenAI model version
-    version = st.selectbox("Choose OpenAI Model version", ("3.5", "4.0"))
-    if version == "3.5":
-        # Use GPT-3.5 model
-        MODEL = "gpt-3.5-turbo"
-    else:
-        # USe GPT-4.0 model
-        MODEL = "gpt-4"
-    debug_mode = st.sidebar.checkbox("Debug Mode")
-    stream_mode = st.sidebar.checkbox("Streaming Mode")
-    if debug_mode == "True":
-        debug = True
-    else:
-        debug = False
-    if stream_mode == "True":
-        streaming = True
-    else:
-        streaming = False
-
-
-with st.form("my_form"):
-    input_text = st.text_area("Enter text:", '''Can you give me more details about this ip: 77.246.107.91? \nHow many samples are related to this ip? If you found samples related, \n can you give me more info about the first one?''')
-    submitted = st.form_submit_button("Submit")
-
-    # Create a radio button to select the Threat Intel provider
-    selected_provider = st.radio("Select Threat Intel Provider", ["VirusTotal", "Alienvault OTX", "Risk IQ"], key="provider", horizontal=True)
-
-    # Conditional password input for the API key based on the selected provider
-    if selected_provider == "VirusTotal":
-        vt_key = st.text_input("Enter VirusTotal API Key", key= "vt", type="password")
-    elif selected_provider == "Alienvault OTX":
-        api_key = st.text_input("Enter Alienvault API Key", key="otx" , type="password")
-    elif selected_provider == "Risk IQ":
-        api_key = st.text_input("Enter Risk IQ API Key", key="riskiq_key", type="password")
-        api_secret = st.text_input("Enter Risk IQ API Secret", key="riskiq_secret", type="password")
-
-    # Display the selected provider and API details
-    st.write("Selected Provider:", selected_provider)
-
-    if not openai_api_key:
-        st.info("Please add your OpenAI API key to continue.")
-    elif submitted:
-        llm = ChatOpenAI(model_name=MODEL, temperature=0.3, streaming=streaming, openai_api_key=openai_api_key)
         if selected_provider == "VirusTotal":
-            vt_key = vt_key
-            agent_name = "VTAgent"
-            agent_runner = AgentRunner()
+            agent = "VTAgent"
         elif selected_provider == "Alienvault OTX":
-            AuthKey = api_key
-            agent_name = "OTXAgent"
-            agent_runner = AgentRunner()
+            agent = "OTXAgent"
         elif selected_provider == "Risk IQ":
-            ApiId = api_key
-            api_key = api_secret
-            agent_name = "RiskIQAgent"
-            agent_runner = AgentRunner()
-        agent_runner.run_agent(prompt=input_text, agent_name=agent_name, debug=debug)
+            agent = "RiskIQAgent"
+
+        st.write("Selected Provider:", selected_provider)
+        st.write("Whenever you're ready, ask me what you want, and I'll investigate for you! 😉")
+
+        st.divider()
+        st.subheader("🥷 About the Team")
+        st.markdown(
+            """
+            - Thomas Roccia
+            - Ashwin Patil
+            - Arjun Trivedi
+            - Vignesh Nayak
+            - Aditi Shah
+            - Julien Touche
+            - Wilman Rodriguez
+            """
+         )
+        st.divider()
+        st.write("Made with ♥ by the MSTICpy AI Team ")
+
         
+    # Check if session state variables exist, if not initialize them
+    if "user_msgs" not in st.session_state:
+        st.session_state.user_msgs = []
+
+    if "bot_msgs" not in st.session_state:
+        st.session_state.bot_msgs = []
+
+    if 'ready_to_download' not in st.session_state:
+        st.session_state.ready_to_download = False
+    
+    # Initialize the sound
+    pygame.mixer.init()
+    sound = pygame.mixer.Sound('note.wav')
+
+    with st.form("my_form", clear_on_submit=True):
+
+        input_text = st.text_area(
+            label="Enter your prompt:", 
+        )
+
+        submitted = st.form_submit_button("Run investigation")
+
+        if submitted:
+            agent_runner = AgentRunner()
+
+            with st.spinner(input_text):
+                result = AgentRunner.run_agent(agent, prompt=input_text, debug=True, openai_api_key=openai_api_key, model_name=MODEL)
+                # Append user's message to the session state list
+                st.session_state.user_msgs.append(input_text)
+                # Append bot's response to the session state list
+                st.session_state.bot_msgs.append(result)
+
+            # Display the conversation history
+            for user_msg, bot_msg in zip(st.session_state.user_msgs, st.session_state.bot_msgs):
+                sound.play()
+                st.write(user_template.replace("{{MSG}}", user_msg), unsafe_allow_html=True)
+                st.write(bot_template.replace("{{MSG}}", bot_msg), unsafe_allow_html=True)
+            
+            # After updating conversation history
+            st.session_state.ready_to_download = True
+                
+    # Outside of the form
+    if st.session_state.ready_to_download:
+        conversation_str = ""
+        for user_msg, bot_msg in zip(st.session_state.user_msgs, st.session_state.bot_msgs):
+            conversation_str += "Analyst: " + user_msg + "\n"
+            conversation_str += "MSTICpy Assistant: " + bot_msg + "\n\n"
+
+        tfile = tempfile.NamedTemporaryFile(delete=False) 
+        path = tfile.name + ".txt"
+
+        with open(path, 'w') as f:
+            f.write(conversation_str)
+
+        st.download_button(label="Download conversation history", data=conversation_str, file_name="conversation.txt", mime="text/plain")
+
+
+if __name__ == "__main__":
+    main()
